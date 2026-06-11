@@ -1,5 +1,14 @@
 import type { QuizQuestion, QuizRoom } from "@/lib/quiz";
 
+export type AvailableRoom = {
+  roomCode: string;
+  title: string;
+  hostName: string;
+  participantCount: number;
+  status: "live" | "finished";
+  createdAt: number;
+};
+
 async function requestJson<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, {
     ...init,
@@ -28,6 +37,10 @@ export function createRoomRequest(input: {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function listRoomsRequest() {
+  return requestJson<AvailableRoom[]>("/api/rooms", { method: "GET" });
 }
 
 export function getRoomRequest(roomCode: string) {

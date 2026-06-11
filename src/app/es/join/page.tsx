@@ -1,5 +1,5 @@
-import { StudentRoom } from "@/components/student-room-es";
+import { StudentRoom } from "@/components/student-room";
 
 export default function JoinPage() {
-  return <StudentRoom />;
+  return <StudentRoom locale="es" />;
 }

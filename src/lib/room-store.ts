@@ -9,7 +9,7 @@ import {
   type QuizQuestion,
   type QuizRoom,
 } from "@/lib/quiz";
-import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
 import { getDynamoDocumentClient, getRoomsTableName } from "@/lib/dynamodb";
 
@@ -21,6 +21,15 @@ type RoomRecord = {
   room: QuizRoom;
   version: number;
   ttl: number;
+};
+
+export type AvailableRoom = {
+  roomCode: string;
+  title: string;
+  hostName: string;
+  participantCount: number;
+  status: QuizRoom["status"];
+  createdAt: number;
 };
 
 type LocalStore = {
@@ -63,6 +72,17 @@ function buildRecord(room: QuizRoom, version: number): RoomRecord {
     room,
     version,
     ttl: computeTtl(),
+  };
+}
+
+function toAvailableRoom(room: QuizRoom): AvailableRoom {
+  return {
+    roomCode: room.roomCode,
+    title: room.title,
+    hostName: room.hostName,
+    participantCount: room.participants.length,
+    status: room.status,
+    createdAt: room.createdAt,
   };
 }
 
@@ -128,6 +148,31 @@ async function tryCreateRoom(roomCode: string, room: QuizRoom) {
 export async function getRoom(roomCode: string) {
   const record = await getRoomRecord(roomCode);
   return record?.room ?? null;
+}
+
+export async function listRooms() {
+  if (isDevelopmentMode()) {
+    return [...getLocalStore().rooms.values()]
+      .map((record) => record.room)
+      .filter((room) => room.status === "live")
+      .sort((leftRoom, rightRoom) => rightRoom.createdAt - leftRoom.createdAt)
+      .map(toAvailableRoom);
+  }
+
+  const client = getDynamoDocumentClient();
+  const tableName = getRoomsTableName();
+  const response = await client.send(
+    new ScanCommand({
+      TableName: tableName,
+      ProjectionExpression: "roomCode, room",
+    }),
+  );
+
+  return ((response.Items as RoomRecord[] | undefined) ?? [])
+    .map((record) => record.room)
+    .filter((room) => room.status === "live")
+    .sort((leftRoom, rightRoom) => rightRoom.createdAt - leftRoom.createdAt)
+    .map(toAvailableRoom);
 }
 
 export async function createRoom(input: {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createRoom } from "@/lib/room-store";
+import { createRoom, listRooms } from "@/lib/room-store";
 import type { QuizQuestion } from "@/lib/quiz";
 
 export const runtime = "nodejs";
@@ -10,6 +10,11 @@ type CreateRoomBody = {
   roomCode?: string;
   questions: QuizQuestion[];
 };
+
+export async function GET() {
+  const rooms = await listRooms();
+  return NextResponse.json(rooms);
+}
 
 export async function POST(request: Request) {
   const body = (await request.json()) as CreateRoomBody;

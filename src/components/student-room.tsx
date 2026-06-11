@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { createId, getQuestionScores, type QuizRoom } from "@/lib/quiz";
-import { joinRoomRequest, voteRequest } from "@/lib/room-api";
+import { useEffect, useState } from "react";
+import { createFunnyStudentName, createId } from "@/lib/quiz";
+import {
+  joinRoomRequest,
+  listRoomsRequest,
+  type AvailableRoom,
+  voteRequest,
+} from "@/lib/room-api";
 import { useRoomStream } from "@/lib/use-room-stream";
 
 type StudentState = {
@@ -12,7 +17,159 @@ type StudentState = {
   joinedRoomCode: string | null;
 };
 
+type Locale = "en" | "es";
+
+type StudentRoomText = {
+  genericNames: string[];
+  noticeJoin: string;
+  noticeCodeFirst: string;
+  noticeJoined: string;
+  noticeJoinError: string;
+  noticeVoted: string;
+  noticeVoteError: string;
+  roomLoadError: string;
+  headerBadge: string;
+  headerTitle: string;
+  headerDescription: string;
+  cardRoom: string;
+  cardLiveRooms: string;
+  cardStatus: string;
+  cardReady: string;
+  inConnected: string;
+  inConnecting: string;
+  inWaiting: string;
+  inRoomPrefix: string;
+  inWaitingQuestion: string;
+  inQuestionLabel: string;
+  inQuestionOf: string;
+  inFinished: string;
+  inNoQuestion: string;
+  choice: string;
+  yourVote: string;
+  availableRooms: string;
+  joinLiveClass: string;
+  refresh: string;
+  loadingRooms: string;
+  hostedBy: string;
+  join: string;
+  studentsInsideSuffix: string;
+  studentSingular: string;
+  studentPlural: string;
+  noRooms: string;
+  joinWithCode: string;
+  keepRosterFun: string;
+  defaultAlias: string;
+  aliasDescription: string;
+  studentName: string;
+  roomCode: string;
+  joinRoom: string;
+  studentPlaceholder: string;
+};
+
 const STORAGE_KEY = "coqui-encuestas-student-state";
+
+const TEXT: Record<Locale, StudentRoomText> = {
+  en: {
+    genericNames: ["Student", "Anonymous"],
+    noticeJoin: "Join a published room and vote on the active question.",
+    noticeCodeFirst: "Enter a room code first.",
+    noticeJoined: "Joined room",
+    noticeJoinError: "Unable to join the room.",
+    noticeVoted: "You voted for",
+    noticeVoteError: "Unable to record your vote.",
+    roomLoadError: "Unable to load rooms.",
+    headerBadge: "Student room",
+    headerTitle: "Pick a room and jump in.",
+    headerDescription:
+      "Start with an available room or use a room code. Your name is prefilled with a funny alias so the roster stays readable.",
+    cardRoom: "Room",
+    cardLiveRooms: "Live rooms",
+    cardStatus: "Status",
+    cardReady: "ready",
+    inConnected: "Connected",
+    inConnecting: "Connecting",
+    inWaiting: "Waiting",
+    inRoomPrefix: "Room",
+    inWaitingQuestion: "Waiting for the next question",
+    inQuestionLabel: "Question",
+    inQuestionOf: "of",
+    inFinished: "The room has finished. Your latest vote has been saved.",
+    inNoQuestion:
+      "Your teacher has not opened a question yet. Keep this screen open and the quiz will appear automatically.",
+    choice: "Choice",
+    yourVote: "Your vote",
+    availableRooms: "Available rooms",
+    joinLiveClass: "Join a live class",
+    refresh: "Refresh",
+    loadingRooms: "Loading live rooms...",
+    hostedBy: "Hosted by",
+    join: "Join",
+    studentsInsideSuffix: "inside",
+    studentSingular: "student",
+    studentPlural: "students",
+    noRooms:
+      "No live rooms are available right now. You can still join with a room code.",
+    joinWithCode: "Join with a code",
+    keepRosterFun: "Keep the roster fun",
+    defaultAlias: "Default alias",
+    aliasDescription:
+      "Change it if you want, or keep the funny name so every student stays distinct.",
+    studentName: "Student name",
+    roomCode: "Room code",
+    joinRoom: "Join room",
+    studentPlaceholder: "Turbo Taco",
+  },
+  es: {
+    genericNames: ["Estudiante", "Anonimo", "Anonymous"],
+    noticeJoin: "Unete a una sala publicada y vota sobre la pregunta activa.",
+    noticeCodeFirst: "Ingresa un codigo de sala primero.",
+    noticeJoined: "Te uniste a la sala",
+    noticeJoinError: "No se pudo unir a la sala.",
+    noticeVoted: "Votaste por",
+    noticeVoteError: "No se pudo registrar tu voto.",
+    roomLoadError: "No se pudieron cargar las salas.",
+    headerBadge: "Sala de estudiantes",
+    headerTitle: "Elige una sala y entra rapido.",
+    headerDescription:
+      "Empieza con una sala disponible o con un codigo. Tu nombre llega con un alias divertido para evitar estudiantes repetidos.",
+    cardRoom: "Sala",
+    cardLiveRooms: "Salas activas",
+    cardStatus: "Estado",
+    cardReady: "listo",
+    inConnected: "Conectado",
+    inConnecting: "Conectando",
+    inWaiting: "Esperando",
+    inRoomPrefix: "Sala",
+    inWaitingQuestion: "Esperando la siguiente pregunta",
+    inQuestionLabel: "Pregunta",
+    inQuestionOf: "de",
+    inFinished: "La sala ya termino. Tu ultimo voto quedo guardado.",
+    inNoQuestion:
+      "Tu profesor todavia no abre una pregunta. Deja esta pantalla abierta y el quiz aparecera automaticamente.",
+    choice: "Opcion",
+    yourVote: "Tu voto",
+    availableRooms: "Salas disponibles",
+    joinLiveClass: "Entra a una clase en vivo",
+    refresh: "Actualizar",
+    loadingRooms: "Cargando salas activas...",
+    hostedBy: "Guiada por",
+    join: "Entrar",
+    studentsInsideSuffix: "dentro",
+    studentSingular: "estudiante",
+    studentPlural: "estudiantes",
+    noRooms:
+      "No hay salas activas ahora mismo. Igual puedes entrar con un codigo.",
+    joinWithCode: "Entrar con codigo",
+    keepRosterFun: "Mantengamos la lista divertida",
+    defaultAlias: "Alias por defecto",
+    aliasDescription:
+      "Cambialo si quieres, o deja el nombre divertido para que nadie aparezca como estudiante repetido.",
+    studentName: "Nombre del estudiante",
+    roomCode: "Codigo de sala",
+    joinRoom: "Unirse a sala",
+    studentPlaceholder: "Turbo Taco",
+  },
+};
 
 function sanitizeRoomCode(value: string) {
   return value
@@ -21,34 +178,52 @@ function sanitizeRoomCode(value: string) {
     .slice(0, 8);
 }
 
-function defaultState(): StudentState {
+function defaultState(locale: Locale): StudentState {
   return {
     roomCode: "",
-    participantName: "Student",
-    participantId: createId("student"),
+    participantName: locale === "es" ? "Estudiante" : "Student",
+    participantId: "",
     joinedRoomCode: null,
   };
 }
 
-export function StudentRoom() {
-  const [state, setState] = useState<StudentState>(defaultState);
-  const [notice, setNotice] = useState(
-    "Join a published room and vote on the active question.",
-  );
+export function StudentRoom({ locale = "en" }: { locale?: Locale }) {
+  const t = TEXT[locale];
+  const storageKey = `${STORAGE_KEY}-${locale}`;
+
+  const [state, setState] = useState<StudentState>(() => defaultState(locale));
+  const [notice, setNotice] = useState<string>(t.noticeJoin);
+  const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [roomsError, setRoomsError] = useState<string | null>(null);
   const { room, loading, error, setRoom } = useRoomStream(state.joinedRoomCode);
 
   useEffect(() => {
     try {
-      const rawState = window.localStorage.getItem(STORAGE_KEY);
+      const rawState = window.localStorage.getItem(storageKey);
+      const fallbackName = createFunnyStudentName(locale);
+      const fallbackParticipantId = createId("student");
+
       if (!rawState) {
+        setState((currentState) => ({
+          ...currentState,
+          participantName: fallbackName,
+          participantId: fallbackParticipantId,
+        }));
         return;
       }
 
       const parsed = JSON.parse(rawState) as Partial<StudentState>;
+      const nextName = parsed.participantName?.trim();
+
       setState((currentState) => ({
         ...currentState,
         ...parsed,
-        participantId: parsed.participantId || currentState.participantId,
+        participantName:
+          nextName && !t.genericNames.includes(nextName)
+            ? nextName
+            : fallbackName,
+        participantId: parsed.participantId || fallbackParticipantId,
         roomCode: parsed.roomCode
           ? sanitizeRoomCode(parsed.roomCode)
           : currentState.roomCode,
@@ -56,57 +231,97 @@ export function StudentRoom() {
     } catch {
       // Ignore bad saved state.
     }
-  }, []);
+  }, [locale, storageKey, t.genericNames]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    window.localStorage.setItem(storageKey, JSON.stringify(state));
+  }, [state, storageKey]);
+
+  const hasJoined = Boolean(state.joinedRoomCode);
+
+  useEffect(() => {
+    if (hasJoined) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const loadRooms = async () => {
+      setRoomsLoading(true);
+      setRoomsError(null);
+
+      try {
+        const rooms = await listRoomsRequest();
+        if (!controller.signal.aborted) {
+          setAvailableRooms(rooms);
+        }
+      } catch (roomsLoadError) {
+        if (!controller.signal.aborted) {
+          setRoomsError(
+            roomsLoadError instanceof Error
+              ? roomsLoadError.message
+              : t.roomLoadError,
+          );
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setRoomsLoading(false);
+        }
+      }
+    };
+
+    void loadRooms();
+
+    return () => {
+      controller.abort();
+    };
+  }, [hasJoined, t.roomLoadError]);
 
   const currentQuestion = room?.questions[room.activeQuestionIndex] ?? null;
-  const scores = useMemo(
-    () => getQuestionScores(room, currentQuestion?.id),
-    [currentQuestion?.id, room],
-  );
   const joinedParticipant =
     room?.participants.find(
       (participant) => participant.id === state.participantId,
     ) ?? null;
-  const hasJoined = Boolean(
+  const isConnected = Boolean(
     room && state.joinedRoomCode === room.roomCode && joinedParticipant,
   );
 
-  const joinRoom = async () => {
-    if (!state.roomCode.trim()) {
-      setNotice("Enter a room code first.");
+  const joinRoom = async (roomCode = state.roomCode) => {
+    const normalizedRoomCode = sanitizeRoomCode(roomCode);
+    if (!normalizedRoomCode) {
+      setNotice(t.noticeCodeFirst);
       return;
     }
 
+    const fallbackName =
+      state.participantName.trim() || createFunnyStudentName(locale);
+    const participantId = state.participantId || createId("student");
+
     try {
       const response = await joinRoomRequest({
-        roomCode: sanitizeRoomCode(state.roomCode),
-        participantName: state.participantName.trim() || "Student",
-        participantId: state.participantId,
+        roomCode: normalizedRoomCode,
+        participantName: fallbackName,
+        participantId,
       });
 
       setState((currentState) => ({
         ...currentState,
+        participantName: currentState.participantName.trim() || fallbackName,
         roomCode: response.room.roomCode,
         joinedRoomCode: response.room.roomCode,
-        participantId: response.participantId,
+        participantId: response.participantId || participantId,
       }));
       setRoom(response.room);
-      setNotice(`Joined room ${response.room.roomCode}.`);
+      setNotice(`${t.noticeJoined} ${response.room.roomCode}.`);
     } catch (joinError) {
       setNotice(
-        joinError instanceof Error
-          ? joinError.message
-          : "Unable to join the room.",
+        joinError instanceof Error ? joinError.message : t.noticeJoinError,
       );
     }
   };
 
   const vote = async (option: string) => {
-    if (!room || !currentQuestion || !hasJoined) {
+    if (!room || !currentQuestion || !isConnected) {
       return;
     }
 
@@ -119,20 +334,13 @@ export function StudentRoom() {
       });
 
       setRoom(nextRoom);
-      setNotice(`You voted for ${option}.`);
+      setNotice(`${t.noticeVoted} ${option}.`);
     } catch (voteError) {
       setNotice(
-        voteError instanceof Error
-          ? voteError.message
-          : "Unable to record your vote.",
+        voteError instanceof Error ? voteError.message : t.noticeVoteError,
       );
     }
   };
-
-  const participantNames =
-    room?.participants
-      .filter((participant) => participant.votes[currentQuestion?.id ?? ""])
-      .map((participant) => participant.name) ?? [];
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_#fff7e8_0%,_#f2f0ea_40%,_#e8ecf4_100%)] text-slate-950">
@@ -140,227 +348,280 @@ export function StudentRoom() {
       <div className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-emerald-300/35 blur-3xl" />
       <div className="pointer-events-none absolute right-0 top-36 h-80 w-80 rounded-full bg-cyan-300/30 blur-3xl" />
 
-      <section className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-6 py-8 lg:px-10">
-        <header className="flex flex-col gap-6 rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.08)] backdrop-blur md:p-8">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div className="max-w-3xl space-y-4">
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white">
-                Student room
-              </span>
-              <h1 className="text-4xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-                Join the room and vote live.
-              </h1>
-              <p className="max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
-                Enter the code from your teacher, connect to the live room, and
-                answer questions while only the results are revealed.
-              </p>
+      <section className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+        {!hasJoined ? (
+          <header className="flex flex-col gap-6 rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.08)] backdrop-blur md:p-8">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="max-w-3xl space-y-4">
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white">
+                  {t.headerBadge}
+                </span>
+                <h1 className="text-4xl font-semibold tracking-tight text-slate-950 md:text-6xl">
+                  {t.headerTitle}
+                </h1>
+                <p className="max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
+                  {t.headerDescription}
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3 md:min-w-[24rem]">
+                <StatCard
+                  label={t.cardRoom}
+                  value={(room?.roomCode ?? state.roomCode) || "-"}
+                  tone="slate"
+                />
+                <StatCard
+                  label={hasJoined ? t.studentName : t.cardLiveRooms}
+                  value={
+                    hasJoined
+                      ? state.participantName
+                      : String(availableRooms.length)
+                  }
+                  tone="emerald"
+                />
+                <StatCard
+                  label={t.cardStatus}
+                  value={hasJoined ? (room?.status ?? "loading") : t.cardReady}
+                  tone="cyan"
+                />
+              </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 md:min-w-[28rem]">
-              <StatCard
-                label="Room"
-                value={(room?.roomCode ?? state.roomCode) || "-"}
-                tone="slate"
-              />
-              <StatCard
-                label="Votes"
-                value={String(
-                  room?.participants.filter(
-                    (participant) =>
-                      participant.votes[currentQuestion?.id ?? ""],
-                  ).length ?? 0,
-                )}
-                tone="emerald"
-              />
-              <StatCard
-                label="Status"
-                value={room?.status ?? "idle"}
-                tone="cyan"
-              />
-            </div>
-          </div>
+            <p className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm text-white">
+              {notice}
+              {error ? ` ${error}` : ""}
+            </p>
+          </header>
+        ) : null}
 
-          <p className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm text-white">
-            {notice}
-            {error ? ` ${error}` : ""}
-          </p>
-        </header>
-
-        <div className="grid flex-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <section className="rounded-[2rem] border border-slate-200 bg-white/80 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur">
+        {hasJoined ? (
+          <article className="rounded-[2rem] border border-slate-200 bg-white/85 p-5 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
             <div className="flex flex-col gap-3 border-b border-slate-200 pb-4">
-              <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
-                Join room
+              <p className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm text-white">
+                {notice}
+                {error ? ` ${error}` : ""}
               </p>
-              <h2 className="text-3xl font-semibold tracking-tight text-slate-950">
-                Connect your student identity
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white">
+                  {isConnected
+                    ? t.inConnected
+                    : loading
+                      ? t.inConnecting
+                      : t.inWaiting}
+                </span>
+                {room && (
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
+                    {room.title}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
+                {room
+                  ? `${t.inRoomPrefix} ${room.roomCode}`
+                  : `${t.inRoomPrefix} ${state.joinedRoomCode}`}
+              </p>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+                {currentQuestion ? currentQuestion.prompt : t.inWaitingQuestion}
               </h2>
+              {room && currentQuestion ? (
+                <p className="text-sm text-slate-500">
+                  {t.inQuestionLabel} {room.activeQuestionIndex + 1}{" "}
+                  {t.inQuestionOf} {room.questions.length}
+                </p>
+              ) : null}
             </div>
 
-            <div className="mt-6 space-y-4">
-              <Field
-                label="Student name"
-                value={state.participantName}
-                onChange={(value) =>
-                  setState((currentState) => ({
-                    ...currentState,
-                    participantName: value,
-                  }))
-                }
-                placeholder="Alex"
-              />
-              <Field
-                label="Room code"
-                value={state.roomCode}
-                onChange={(value) =>
-                  setState((currentState) => ({
-                    ...currentState,
-                    roomCode: sanitizeRoomCode(value),
-                  }))
-                }
-                placeholder="KQ-1234"
-                maxLength={8}
-              />
+            {!currentQuestion ? (
+              <div className="mt-5 rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 p-5 text-sm leading-6 text-slate-600">
+                {room?.status === "finished" ? t.inFinished : t.inNoQuestion}
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {currentQuestion.options.map((option, optionIndex) => {
+                  const selected =
+                    joinedParticipant?.votes[currentQuestion.id] === option;
 
-              <button
-                type="button"
-                onClick={() => void joinRoom()}
-                className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Join room
-              </button>
-            </div>
-
-            <div className="mt-6 rounded-[1.4rem] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-              Once joined, your votes update the teacher dashboard in real time
-              through the backend stream.
-            </div>
-          </section>
-
-          <section className="grid gap-6">
-            <article className="rounded-[2rem] border border-slate-200 bg-white/80 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur">
-              <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-end md:justify-between">
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => void vote(option)}
+                      className={`rounded-[1.5rem] border p-4 text-left transition sm:p-5 ${
+                        selected
+                          ? "border-cyan-400 bg-cyan-50 shadow-[0_12px_40px_rgba(34,211,238,0.18)]"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                          {t.choice} {optionIndex + 1}
+                        </span>
+                        {selected ? (
+                          <span className="rounded-full bg-slate-950 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white">
+                            {t.yourVote}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-3 text-lg font-medium leading-6 text-slate-950 sm:text-xl">
+                        {option}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </article>
+        ) : (
+          <div className="grid flex-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+            <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-5 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
+              <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-4">
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
-                    Live question
+                    {t.availableRooms}
                   </p>
-                  <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-                    {currentQuestion
-                      ? currentQuestion.prompt
-                      : "Waiting for a live room"}
-                  </h3>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                    {t.joinLiveClass}
+                  </h2>
                 </div>
-                <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white">
-                  {hasJoined ? "Connected" : loading ? "Connecting" : "Waiting"}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoomsLoading(true);
+                    void listRoomsRequest()
+                      .then((rooms) => {
+                        setAvailableRooms(rooms);
+                        setRoomsError(null);
+                      })
+                      .catch((roomsLoadError) => {
+                        setRoomsError(
+                          roomsLoadError instanceof Error
+                            ? roomsLoadError.message
+                            : t.roomLoadError,
+                        );
+                      })
+                      .finally(() => {
+                        setRoomsLoading(false);
+                      });
+                  }}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  {t.refresh}
+                </button>
               </div>
 
-              {!currentQuestion ? (
-                <div className="mt-5 rounded-[1.4rem] border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                  Join a live room to see the current question and answer
-                  choices.
-                </div>
-              ) : (
-                <div className="mt-5 space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {currentQuestion.options.map((option, optionIndex) => {
-                      const selected =
-                        joinedParticipant?.votes[currentQuestion.id] === option;
-
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => void vote(option)}
-                          className={`rounded-[1.4rem] border p-4 text-left transition ${
-                            selected
-                              ? "border-cyan-400 bg-cyan-50 shadow-[0_12px_40px_rgba(34,211,238,0.18)]"
-                              : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">
-                              Choice {optionIndex + 1}
-                            </span>
-                            {selected && (
-                              <span className="rounded-full bg-slate-950 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white">
-                                Your vote
-                              </span>
-                            )}
-                          </div>
-                          <p className="mt-3 text-lg font-medium text-slate-950">
-                            {option}
-                          </p>
-                        </button>
-                      );
-                    })}
+              <div className="mt-5 space-y-3">
+                {roomsLoading ? (
+                  <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                    {t.loadingRooms}
                   </div>
-
-                  <div className="rounded-[1.4rem] bg-slate-950 p-5 text-white">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm uppercase tracking-[0.3em] text-slate-400">
-                          Student results
-                        </p>
-                        <h4 className="mt-2 text-2xl font-semibold">
-                          Live distribution
-                        </h4>
-                      </div>
-                      <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-slate-200">
-                        {scores.reduce((sum, score) => sum + score.count, 0)}{" "}
-                        votes
-                      </span>
-                    </div>
-
-                    <div className="mt-5 space-y-3">
-                      {scores.map((result) => (
-                        <div key={result.option} className="space-y-2">
-                          <div className="flex items-center justify-between gap-4 text-sm text-slate-300">
-                            <span>{result.option}</span>
-                            <span>
-                              {result.count} vote{result.count === 1 ? "" : "s"}{" "}
-                              · {result.percent}%
-                            </span>
-                          </div>
-                          <div className="h-3 overflow-hidden rounded-full bg-white/10">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-amber-300 transition-all"
-                              style={{
-                                width: `${Math.max(result.percent, result.count > 0 ? 12 : 0)}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </article>
-
-            <article className="rounded-[2rem] border border-slate-200 bg-white/80 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur">
-              <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
-                Who voted
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {participantNames.length > 0 ? (
-                  participantNames.map((name) => (
-                    <span
-                      key={name}
-                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600"
+                ) : availableRooms.length > 0 ? (
+                  availableRooms.map((availableRoom) => (
+                    <button
+                      key={availableRoom.roomCode}
+                      type="button"
+                      onClick={() => {
+                        setState((currentState) => ({
+                          ...currentState,
+                          roomCode: availableRoom.roomCode,
+                        }));
+                        void joinRoom(availableRoom.roomCode);
+                      }}
+                      className="w-full rounded-[1.5rem] border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_16px_45px_rgba(15,23,42,0.08)]"
                     >
-                      {name}
-                    </span>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                            {availableRoom.roomCode}
+                          </p>
+                          <h3 className="mt-2 text-lg font-semibold text-slate-950">
+                            {availableRoom.title}
+                          </h3>
+                          <p className="mt-1 text-sm text-slate-600">
+                            {t.hostedBy} {availableRoom.hostName}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white">
+                          {t.join}
+                        </span>
+                      </div>
+                      <p className="mt-4 text-sm text-slate-500">
+                        {availableRoom.participantCount}{" "}
+                        {availableRoom.participantCount === 1
+                          ? t.studentSingular
+                          : t.studentPlural}{" "}
+                        {t.studentsInsideSuffix}
+                      </p>
+                    </button>
                   ))
                 ) : (
-                  <p className="text-sm text-slate-500">
-                    No one has voted on the current question yet.
-                  </p>
+                  <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                    {t.noRooms}
+                  </div>
                 )}
+                {roomsError ? (
+                  <p className="text-sm text-rose-600">{roomsError}</p>
+                ) : null}
               </div>
-            </article>
-          </section>
-        </div>
+            </section>
+
+            <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-5 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
+              <div className="border-b border-slate-200 pb-4">
+                <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
+                  {t.joinWithCode}
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                  {t.keepRosterFun}
+                </h2>
+              </div>
+
+              <div className="mt-5 rounded-[1.5rem] bg-slate-950 p-4 text-white">
+                <p className="text-xs uppercase tracking-[0.28em] text-slate-400">
+                  {t.defaultAlias}
+                </p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight">
+                  {state.participantName}
+                </p>
+                <p className="mt-2 text-sm text-slate-300">
+                  {t.aliasDescription}
+                </p>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                <Field
+                  label={t.studentName}
+                  value={state.participantName}
+                  onChange={(value) =>
+                    setState((currentState) => ({
+                      ...currentState,
+                      participantName: value,
+                    }))
+                  }
+                  placeholder={t.studentPlaceholder}
+                />
+                <Field
+                  label={t.roomCode}
+                  value={state.roomCode}
+                  onChange={(value) =>
+                    setState((currentState) => ({
+                      ...currentState,
+                      roomCode: sanitizeRoomCode(value),
+                    }))
+                  }
+                  placeholder="KQ-1234"
+                  maxLength={8}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => void joinRoom()}
+                  className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  {t.joinRoom}
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
       </section>
     </main>
   );

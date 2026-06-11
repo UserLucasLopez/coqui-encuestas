@@ -35,6 +35,73 @@ export function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+export function createFunnyStudentName(locale: "en" | "es" = "en") {
+  const dictionaries = {
+    en: {
+      adjectives: [
+        "Bouncy",
+        "Cosmic",
+        "Dizzy",
+        "Jazz",
+        "Lucky",
+        "Moon",
+        "Sneaky",
+        "Turbo",
+        "Wobbly",
+        "Zippy",
+      ],
+      nouns: [
+        "Avocado",
+        "Banana",
+        "Burrito",
+        "Llama",
+        "Muffin",
+        "Noodle",
+        "Otter",
+        "Pickle",
+        "Pineapple",
+        "Taco",
+      ],
+    },
+    es: {
+      adjectives: [
+        "Bailarin",
+        "Chispa",
+        "Cosmico",
+        "Gelatina",
+        "Lunar",
+        "Picante",
+        "Saltarin",
+        "Sigiloso",
+        "Tambor",
+        "Turbo",
+      ],
+      nouns: [
+        "Aguacate",
+        "Arepa",
+        "Burrito",
+        "Fideo",
+        "Llama",
+        "Mapache",
+        "Nube",
+        "Pepinillo",
+        "Taco",
+        "Tomate",
+      ],
+    },
+  };
+
+  const dictionary = dictionaries[locale];
+  const adjective =
+    dictionary.adjectives[
+      Math.floor(Math.random() * dictionary.adjectives.length)
+    ];
+  const noun =
+    dictionary.nouns[Math.floor(Math.random() * dictionary.nouns.length)];
+
+  return `${adjective} ${noun}`;
+}
+
 export function generateRoomCode() {
   return `KQ-${Math.floor(1000 + Math.random() * 9000)}`;
 }
