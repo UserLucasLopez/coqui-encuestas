@@ -370,51 +370,6 @@ export function StudentRoom({ locale = "en" }: { locale?: Locale }) {
       <div className="pointer-events-none absolute right-0 top-36 h-80 w-80 rounded-full bg-cyan-300/30 blur-3xl" />
 
       <section className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        {!hasJoined ? (
-          <header className="flex flex-col gap-6 rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.08)] backdrop-blur md:p-8">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div className="max-w-3xl space-y-4">
-                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white">
-                  {t.headerBadge}
-                </span>
-                <h1 className="text-4xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-                  {t.headerTitle}
-                </h1>
-                <p className="max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
-                  {t.headerDescription}
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3 md:min-w-[24rem]">
-                <StatCard
-                  label={t.cardRoom}
-                  value={(room?.roomCode ?? state.roomCode) || "-"}
-                  tone="slate"
-                />
-                <StatCard
-                  label={hasJoined ? t.studentName : t.cardLiveRooms}
-                  value={
-                    hasJoined
-                      ? state.participantName
-                      : String(availableRooms.length)
-                  }
-                  tone="emerald"
-                />
-                <StatCard
-                  label={t.cardStatus}
-                  value={hasJoined ? (room?.status ?? "loading") : t.cardReady}
-                  tone="cyan"
-                />
-              </div>
-            </div>
-
-            <p className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm text-white">
-              {notice}
-              {error ? ` ${error}` : ""}
-            </p>
-          </header>
-        ) : null}
-
         {hasJoined ? (
           <article className="rounded-[2rem] border border-slate-200 bg-white/85 p-5 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
             <div className="flex flex-col gap-3 border-b border-slate-200 pb-4">
@@ -426,24 +381,6 @@ export function StudentRoom({ locale = "en" }: { locale?: Locale }) {
                 >
                   {t.leaveRoom}
                 </button>
-              </div>
-              <p className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm text-white">
-                {notice}
-                {error ? ` ${error}` : ""}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white">
-                  {isConnected
-                    ? t.inConnected
-                    : loading
-                      ? t.inConnecting
-                      : t.inWaiting}
-                </span>
-                {room && (
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                    {room.title}
-                  </span>
-                )}
               </div>
               <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
                 {room
@@ -504,115 +441,9 @@ export function StudentRoom({ locale = "en" }: { locale?: Locale }) {
         ) : (
           <div className="grid flex-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-5 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
-              <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
-                    {t.availableRooms}
-                  </p>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-                    {t.joinLiveClass}
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRoomsLoading(true);
-                    void listRoomsRequest()
-                      .then((rooms) => {
-                        setAvailableRooms(rooms);
-                        setRoomsError(null);
-                      })
-                      .catch((roomsLoadError) => {
-                        setRoomsError(
-                          roomsLoadError instanceof Error
-                            ? roomsLoadError.message
-                            : t.roomLoadError,
-                        );
-                      })
-                      .finally(() => {
-                        setRoomsLoading(false);
-                      });
-                  }}
-                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  {t.refresh}
-                </button>
-              </div>
-
-              <div className="mt-5 space-y-3">
-                {roomsLoading ? (
-                  <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                    {t.loadingRooms}
-                  </div>
-                ) : availableRooms.length > 0 ? (
-                  availableRooms.map((availableRoom) => (
-                    <button
-                      key={availableRoom.roomCode}
-                      type="button"
-                      onClick={() => {
-                        setState((currentState) => ({
-                          ...currentState,
-                          roomCode: availableRoom.roomCode,
-                        }));
-                        void joinRoom(availableRoom.roomCode);
-                      }}
-                      className="w-full rounded-[1.5rem] border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_16px_45px_rgba(15,23,42,0.08)]"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                            {availableRoom.roomCode}
-                          </p>
-                          <h3 className="mt-2 text-lg font-semibold text-slate-950">
-                            {availableRoom.title}
-                          </h3>
-                          <p className="mt-1 text-sm text-slate-600">
-                            {t.hostedBy} {availableRoom.hostName}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white">
-                          {t.join}
-                        </span>
-                      </div>
-                      <p className="mt-4 text-sm text-slate-500">
-                        {availableRoom.participantCount}{" "}
-                        {availableRoom.participantCount === 1
-                          ? t.studentSingular
-                          : t.studentPlural}{" "}
-                        {t.studentsInsideSuffix}
-                      </p>
-                    </button>
-                  ))
-                ) : (
-                  <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                    {t.noRooms}
-                  </div>
-                )}
-                {roomsError ? (
-                  <p className="text-sm text-rose-600">{roomsError}</p>
-                ) : null}
-              </div>
-            </section>
-
-            <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-5 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
               <div className="border-b border-slate-200 pb-4">
                 <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
                   {t.joinWithCode}
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-                  {t.keepRosterFun}
-                </h2>
-              </div>
-
-              <div className="mt-5 rounded-[1.5rem] bg-slate-950 p-4 text-white">
-                <p className="text-xs uppercase tracking-[0.28em] text-slate-400">
-                  {t.defaultAlias}
-                </p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight">
-                  {state.participantName}
-                </p>
-                <p className="mt-2 text-sm text-slate-300">
-                  {t.aliasDescription}
                 </p>
               </div>
 
@@ -644,7 +475,7 @@ export function StudentRoom({ locale = "en" }: { locale?: Locale }) {
                 <button
                   type="button"
                   onClick={() => void joinRoom()}
-                  className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  className="w-full rounded-full bg-slate-950 px-5 py-3 mt-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   {t.joinRoom}
                 </button>
