@@ -2,17 +2,17 @@ import Link from "next/link";
 
 const highlights = [
   {
-    title: "Teacher workspace",
+    title: "Área de control del profesor",
     description:
-      "Create the room, edit questions, and control the active question from one screen.",
-    href: "/teacher",
+      "Crea la sala, edita preguntas y controla la pregunta activa desde una sola pantalla.",
+    href: "/es/teacher",
     accent: "from-slate-950 to-slate-700",
   },
   {
-    title: "Student room",
+    title: "Sala de estudiantes",
     description:
-      "Join with the code, vote on the live question, and watch the results update instantly.",
-    href: "/join",
+      "Únete con el código, vota sobre la pregunta en vivo y observa los resultados actualizándose al instante.",
+    href: "/es/join",
     accent: "from-amber-300 to-orange-400",
   },
 ];
@@ -26,25 +26,27 @@ export default function Home() {
 
       <div className="absolute right-6 top-6">
         <Link
-          href="/es"
+          href="/"
           className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
         >
-          Español
+          English
         </Link>
       </div>
 
       <section className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col justify-center gap-8 px-6 py-10 lg:px-10">
         <div className="max-w-4xl space-y-6 rounded-[2.25rem] border border-white/70 bg-white/75 p-8 shadow-[0_20px_80px_rgba(15,23,42,0.08)] backdrop-blur md:p-10">
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white">
-            Live classroom
+            Aula en vivo
           </span>
           <h1 className="text-4xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-            A kahoot-style quiz room for teachers and students.
+            Una sala de cuestionarios al estilo Kahoot para profesores y
+            estudiantes.
           </h1>
           <p className="max-w-3xl text-base leading-7 text-slate-600 md:text-lg">
-            Teachers build quizzes and run the room from a dedicated dashboard.
-            Students join with a code, vote on the active question, and see live
-            results instead of a correct answer reveal.
+            Los profesores crean cuestionarios y ejecutan la sala desde un panel
+            de control dedicado. Los estudiantes se unen con un código, votan
+            sobre la pregunta activa y ven resultados en vivo en lugar de una
+            revelación de respuesta correcta.
           </p>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -64,7 +66,7 @@ export default function Home() {
                   {highlight.description}
                 </p>
                 <span className="mt-5 inline-flex text-sm font-semibold text-slate-950">
-                  Open workspace
+                  Abrir área de trabajo
                   <span className="ml-2 transition group-hover:translate-x-1">
                     →
                   </span>
