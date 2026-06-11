@@ -9,7 +9,7 @@ export function getDynamoDocumentClient() {
   }
 
   const client = new DynamoDBClient({
-    region: process.env.AWS_REGION,
+    region: "sa-east-1",
   });
 
   documentClient = DynamoDBDocumentClient.from(client, {
@@ -22,10 +22,10 @@ export function getDynamoDocumentClient() {
 }
 
 export function getRoomsTableName() {
-  const tableName = process.env.DYNAMODB_TABLE_NAME;
+  const tableName = "coqui-encuestas";
 
   if (!tableName) {
-    throw new Error("Missing DYNAMODB_TABLE_NAME environment variable.");
+    throw new Error("Missing 'coqui-encuestas' environment variable.");
   }
 
   return tableName;
