@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Coqui Encuestas",
-  description: "Live quiz rooms for teachers and students with results-only reveals.",
+  description:
+    "Live quiz rooms for teachers and students with results-only reveals.",
 };
 
 export default function RootLayout({

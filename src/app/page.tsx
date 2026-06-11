@@ -42,7 +42,10 @@ const defaultState = (): StoredState => ({
 });
 
 function sanitizeRoomCode(value: string) {
-  return value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  return value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 6);
 }
 
 function cloneQuestion(question: DraftQuestion): DraftQuestion {
@@ -65,7 +68,10 @@ export default function Home() {
         setState({
           ...defaultState(),
           ...parsed,
-          questions: Array.isArray(parsed.questions) && parsed.questions.length > 0 ? parsed.questions : createDraftQuestions(),
+          questions:
+            Array.isArray(parsed.questions) && parsed.questions.length > 0
+              ? parsed.questions
+              : createDraftQuestions(),
           studentId: parsed.studentId || createId("student"),
         });
       }
@@ -85,24 +91,44 @@ export default function Home() {
   }, [hydrated, state]);
 
   const liveRoom = state.liveRoom;
-  const activeQuestion = liveRoom?.questions[liveRoom.activeQuestionIndex] ?? null;
-  const scores = useMemo(() => getQuestionScores(liveRoom, activeQuestion?.id), [activeQuestion?.id, liveRoom]);
-  const activeVotes = liveRoom && activeQuestion
-    ? liveRoom.participants.filter((participant) => participant.votes[activeQuestion.id]).length
-    : 0;
-  const studentParticipant = liveRoom?.participants.find((participant) => participant.id === state.studentId) ?? null;
-  const isJoined = Boolean(liveRoom && state.studentRoomCode === liveRoom.roomCode && studentParticipant);
-  const votedParticipants = liveRoom && activeQuestion
-    ? liveRoom.participants
-        .filter((participant) => participant.votes[activeQuestion.id])
-        .map((participant) => participant.name)
-    : [];
+  const activeQuestion =
+    liveRoom?.questions[liveRoom.activeQuestionIndex] ?? null;
+  const scores = useMemo(
+    () => getQuestionScores(liveRoom, activeQuestion?.id),
+    [activeQuestion?.id, liveRoom],
+  );
+  const activeVotes =
+    liveRoom && activeQuestion
+      ? liveRoom.participants.filter(
+          (participant) => participant.votes[activeQuestion.id],
+        ).length
+      : 0;
+  const studentParticipant =
+    liveRoom?.participants.find(
+      (participant) => participant.id === state.studentId,
+    ) ?? null;
+  const isJoined = Boolean(
+    liveRoom &&
+    state.studentRoomCode === liveRoom.roomCode &&
+    studentParticipant,
+  );
+  const votedParticipants =
+    liveRoom && activeQuestion
+      ? liveRoom.participants
+          .filter((participant) => participant.votes[activeQuestion.id])
+          .map((participant) => participant.name)
+      : [];
 
-  const updateQuestion = (questionId: string, updater: (question: DraftQuestion) => DraftQuestion) => {
+  const updateQuestion = (
+    questionId: string,
+    updater: (question: DraftQuestion) => DraftQuestion,
+  ) => {
     setState((currentState) => ({
       ...currentState,
       questions: currentState.questions.map((question) =>
-        question.id === questionId ? updater(cloneQuestion(question)) : question,
+        question.id === questionId
+          ? updater(cloneQuestion(question))
+          : question,
       ),
     }));
   };
@@ -112,7 +138,10 @@ export default function Home() {
   };
 
   const updateRoomCode = (value: string) => {
-    setState((currentState) => ({ ...currentState, roomCode: sanitizeRoomCode(value) }));
+    setState((currentState) => ({
+      ...currentState,
+      roomCode: sanitizeRoomCode(value),
+    }));
   };
 
   const addQuestion = () => {
@@ -120,17 +149,27 @@ export default function Home() {
       ...currentState,
       questions: [
         ...currentState.questions,
-        createQuestion(`Question ${currentState.questions.length + 1}`, ["Option 1", "Option 2", "Option 3", "Option 4"]),
+        createQuestion(`Question ${currentState.questions.length + 1}`, [
+          "Option 1",
+          "Option 2",
+          "Option 3",
+          "Option 4",
+        ]),
       ],
     }));
   };
 
   const removeQuestion = (questionId: string) => {
     setState((currentState) => {
-      const remainingQuestions = currentState.questions.filter((question) => question.id !== questionId);
+      const remainingQuestions = currentState.questions.filter(
+        (question) => question.id !== questionId,
+      );
       return {
         ...currentState,
-        questions: remainingQuestions.length > 0 ? remainingQuestions : createDraftQuestions(),
+        questions:
+          remainingQuestions.length > 0
+            ? remainingQuestions
+            : createDraftQuestions(),
       };
     });
   };
@@ -145,7 +184,10 @@ export default function Home() {
 
         return {
           ...question,
-          options: [...question.options, `Option ${question.options.length + 1}`],
+          options: [
+            ...question.options,
+            `Option ${question.options.length + 1}`,
+          ],
         };
       }),
     }));
@@ -167,7 +209,11 @@ export default function Home() {
     }));
   };
 
-  const updateOption = (questionId: string, optionIndex: number, optionValue: string) => {
+  const updateOption = (
+    questionId: string,
+    optionIndex: number,
+    optionValue: string,
+  ) => {
     setState((currentState) => ({
       ...currentState,
       questions: currentState.questions.map((question) => {
@@ -240,13 +286,23 @@ export default function Home() {
     }
 
     const participantId = state.studentId || createId("student");
-    const participantName = studentParticipant?.name ?? (state.studentName.trim() || "Student");
-    const roomWithParticipant = addOrUpdateParticipant(liveRoom, participantId, participantName);
+    const participantName =
+      studentParticipant?.name ?? (state.studentName.trim() || "Student");
+    const roomWithParticipant = addOrUpdateParticipant(
+      liveRoom,
+      participantId,
+      participantName,
+    );
 
     setState((currentState) => ({
       ...currentState,
       studentId: participantId,
-      liveRoom: recordVote(roomWithParticipant, participantId, activeQuestion.id, option),
+      liveRoom: recordVote(
+        roomWithParticipant,
+        participantId,
+        activeQuestion.id,
+        option,
+      ),
     }));
   };
 
@@ -257,7 +313,10 @@ export default function Home() {
 
     setState((currentState) => ({
       ...currentState,
-      liveRoom: direction > 0 ? advanceQuestion(currentState.liveRoom!) : rewindQuestion(currentState.liveRoom!),
+      liveRoom:
+        direction > 0
+          ? advanceQuestion(currentState.liveRoom!)
+          : rewindQuestion(currentState.liveRoom!),
     }));
   };
 
@@ -289,25 +348,51 @@ export default function Home() {
                 Live classroom
               </span>
               <h1 className="text-4xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-                Kahoot-style quizzes with teacher control and student results only.
+                Kahoot-style quizzes with teacher control and student results
+                only.
               </h1>
               <p className="max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
-                Build a room, publish it, let students join with a code, and show live response
-                distribution instead of a correct-answer reveal.
+                Build a room, publish it, let students join with a code, and
+                show live response distribution instead of a correct-answer
+                reveal.
               </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3 md:min-w-[28rem]">
-              <StatCard label="Room" value={liveRoom?.roomCode ?? state.roomCode} tone="slate" />
-              <StatCard label="Responses" value={String(activeVotes)} tone="amber" />
-              <StatCard label="Students" value={String(liveRoom?.participants.length ?? 0)} tone="cyan" />
+              <StatCard
+                label="Room"
+                value={liveRoom?.roomCode ?? state.roomCode}
+                tone="slate"
+              />
+              <StatCard
+                label="Responses"
+                value={String(activeVotes)}
+                tone="amber"
+              />
+              <StatCard
+                label="Students"
+                value={String(liveRoom?.participants.length ?? 0)}
+                tone="cyan"
+              />
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <ActionChip title="Teacher" description="Create and publish a room" accent="bg-slate-950 text-white" />
-            <ActionChip title="Student" description="Join with a room code" accent="bg-amber-300 text-slate-950" />
-            <ActionChip title="Results" description="Show votes, not answers" accent="bg-cyan-300 text-slate-950" />
+            <ActionChip
+              title="Teacher"
+              description="Create and publish a room"
+              accent="bg-slate-950 text-white"
+            />
+            <ActionChip
+              title="Student"
+              description="Join with a room code"
+              accent="bg-amber-300 text-slate-950"
+            />
+            <ActionChip
+              title="Results"
+              description="Show votes, not answers"
+              accent="bg-cyan-300 text-slate-950"
+            />
           </div>
         </header>
 
@@ -315,8 +400,12 @@ export default function Home() {
           <section className="rounded-[2rem] border border-white/70 bg-slate-950/95 p-6 text-white shadow-[0_30px_80px_rgba(15,23,42,0.2)]">
             <div className="flex flex-col gap-4 border-b border-white/10 pb-6 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Teacher studio</p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-tight">Design the quiz</h2>
+                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">
+                  Teacher studio
+                </p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+                  Design the quiz
+                </h2>
               </div>
 
               <div className="flex gap-3">
@@ -370,10 +459,12 @@ export default function Home() {
                         </div>
                         <textarea
                           value={question.prompt}
-                          onChange={(event) => updateQuestion(question.id, (currentQuestion) => ({
-                            ...currentQuestion,
-                            prompt: event.target.value,
-                          }))}
+                          onChange={(event) =>
+                            updateQuestion(question.id, (currentQuestion) => ({
+                              ...currentQuestion,
+                              prompt: event.target.value,
+                            }))
+                          }
                           rows={2}
                           className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-base text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300"
                           placeholder="Enter your question"
@@ -399,7 +490,9 @@ export default function Home() {
                             <span>Option {optionIndex + 1}</span>
                             <button
                               type="button"
-                              onClick={() => removeOption(question.id, optionIndex)}
+                              onClick={() =>
+                                removeOption(question.id, optionIndex)
+                              }
                               className="text-[0.7rem] tracking-[0.2em] text-slate-400 transition hover:text-amber-200"
                             >
                               Delete
@@ -407,7 +500,13 @@ export default function Home() {
                           </div>
                           <input
                             value={option}
-                            onChange={(event) => updateOption(question.id, optionIndex, event.target.value)}
+                            onChange={(event) =>
+                              updateOption(
+                                question.id,
+                                optionIndex,
+                                event.target.value,
+                              )
+                            }
                             className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300"
                             placeholder={`Option ${optionIndex + 1}`}
                           />
@@ -424,7 +523,8 @@ export default function Home() {
                         Add option
                       </button>
                       <p className="text-sm text-slate-400">
-                        Students only see the answer distribution for this question.
+                        Students only see the answer distribution for this
+                        question.
                       </p>
                     </div>
                   </article>
@@ -433,7 +533,8 @@ export default function Home() {
 
               {liveRoom && (
                 <div className="rounded-[1.5rem] border border-emerald-400/25 bg-emerald-400/10 p-4 text-sm text-emerald-100">
-                  Room {liveRoom.roomCode} is live. Students can join and vote immediately.
+                  Room {liveRoom.roomCode} is live. Students can join and vote
+                  immediately.
                 </div>
               )}
             </div>
@@ -443,8 +544,12 @@ export default function Home() {
             <article className="rounded-[2rem] border border-slate-200 bg-white/80 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Student lobby</p>
-                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Join and vote</h2>
+                  <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
+                    Student lobby
+                  </p>
+                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+                    Join and vote
+                  </h2>
                 </div>
                 <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white">
                   {isJoined ? "Joined" : "Waiting"}
@@ -455,7 +560,12 @@ export default function Home() {
                 <Field
                   label="Student name"
                   value={state.studentName}
-                  onChange={(value) => setState((currentState) => ({ ...currentState, studentName: value }))}
+                  onChange={(value) =>
+                    setState((currentState) => ({
+                      ...currentState,
+                      studentName: value,
+                    }))
+                  }
                   placeholder="Alex"
                   light
                 />
@@ -491,9 +601,13 @@ export default function Home() {
             <article className="rounded-[2rem] border border-slate-200 bg-white/80 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur">
               <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Live question</p>
+                  <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
+                    Live question
+                  </p>
                   <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-                    {activeQuestion ? activeQuestion.prompt : "Publish a room to start"}
+                    {activeQuestion
+                      ? activeQuestion.prompt
+                      : "Publish a room to start"}
                   </h3>
                 </div>
 
@@ -533,7 +647,8 @@ export default function Home() {
 
                 {liveRoom && !isJoined && (
                   <div className="rounded-[1.4rem] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
-                    Join room {liveRoom.roomCode} to answer the current question.
+                    Join room {liveRoom.roomCode} to answer the current
+                    question.
                   </div>
                 )}
 
@@ -541,7 +656,9 @@ export default function Home() {
                   <div className="space-y-4">
                     <div className="grid gap-3 sm:grid-cols-2">
                       {activeQuestion.options.map((option, optionIndex) => {
-                        const selected = studentParticipant?.votes[activeQuestion.id] === option;
+                        const selected =
+                          studentParticipant?.votes[activeQuestion.id] ===
+                          option;
 
                         return (
                           <button
@@ -564,7 +681,9 @@ export default function Home() {
                                 </span>
                               )}
                             </div>
-                            <p className="mt-3 text-lg font-medium text-slate-950">{option}</p>
+                            <p className="mt-3 text-lg font-medium text-slate-950">
+                              {option}
+                            </p>
                           </button>
                         );
                       })}
@@ -573,8 +692,12 @@ export default function Home() {
                     <div className="rounded-[1.4rem] bg-slate-950 p-5 text-white">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Student results</p>
-                          <h4 className="mt-2 text-2xl font-semibold">Live distribution</h4>
+                          <p className="text-sm uppercase tracking-[0.3em] text-slate-400">
+                            Student results
+                          </p>
+                          <h4 className="mt-2 text-2xl font-semibold">
+                            Live distribution
+                          </h4>
                         </div>
                         <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-slate-200">
                           {activeVotes} votes
@@ -586,12 +709,16 @@ export default function Home() {
                           <div key={result.option} className="space-y-2">
                             <div className="flex items-center justify-between gap-4 text-sm text-slate-300">
                               <span>{result.option}</span>
-                              <span>{result.count} votes · {result.percent}%</span>
+                              <span>
+                                {result.count} votes · {result.percent}%
+                              </span>
                             </div>
                             <div className="h-3 overflow-hidden rounded-full bg-white/10">
                               <div
                                 className="h-full rounded-full bg-gradient-to-r from-amber-300 via-cyan-300 to-emerald-300 transition-all"
-                                style={{ width: `${Math.max(result.percent, result.count > 0 ? 12 : 0)}%` }}
+                                style={{
+                                  width: `${Math.max(result.percent, result.count > 0 ? 12 : 0)}%`,
+                                }}
                               />
                             </div>
                           </div>
@@ -604,14 +731,30 @@ export default function Home() {
             </article>
 
             <article className="rounded-[2rem] border border-slate-200 bg-white/80 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur">
-              <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Room activity</p>
+              <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
+                Room activity
+              </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <InfoTile label="Current question" value={String((liveRoom?.activeQuestionIndex ?? 0) + 1)} />
-                <InfoTile label="Join status" value={isJoined ? "Connected" : "Offline"} />
-                <InfoTile label="Vote state" value={studentParticipant?.votes[activeQuestion?.id ?? ""] ? "Submitted" : "Ready"} />
+                <InfoTile
+                  label="Current question"
+                  value={String((liveRoom?.activeQuestionIndex ?? 0) + 1)}
+                />
+                <InfoTile
+                  label="Join status"
+                  value={isJoined ? "Connected" : "Offline"}
+                />
+                <InfoTile
+                  label="Vote state"
+                  value={
+                    studentParticipant?.votes[activeQuestion?.id ?? ""]
+                      ? "Submitted"
+                      : "Ready"
+                  }
+                />
               </div>
               <div className="mt-4 rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                This prototype intentionally avoids revealing a correct answer. The classroom only sees how students answered.
+                This prototype intentionally avoids revealing a correct answer.
+                The classroom only sees how students answered.
               </div>
               {votedParticipants.length > 0 ? (
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -650,7 +793,9 @@ function Field({
 }) {
   return (
     <label className="space-y-2">
-      <span className={`text-xs uppercase tracking-[0.3em] ${light ? "text-slate-500" : "text-slate-300"}`}>
+      <span
+        className={`text-xs uppercase tracking-[0.3em] ${light ? "text-slate-500" : "text-slate-300"}`}
+      >
         {label}
       </span>
       <input
@@ -702,7 +847,9 @@ function ActionChip({
 }) {
   return (
     <div className={`rounded-3xl px-4 py-3 ${accent}`}>
-      <p className="text-sm font-semibold uppercase tracking-[0.24em]">{title}</p>
+      <p className="text-sm font-semibold uppercase tracking-[0.24em]">
+        {title}
+      </p>
       <p className="mt-1 text-sm opacity-80">{description}</p>
     </div>
   );
@@ -711,7 +858,9 @@ function ActionChip({
 function InfoTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[1.25rem] border border-slate-200 bg-white p-4">
-      <p className="text-xs uppercase tracking-[0.28em] text-slate-500">{label}</p>
+      <p className="text-xs uppercase tracking-[0.28em] text-slate-500">
+        {label}
+      </p>
       <p className="mt-2 text-lg font-semibold text-slate-950">{value}</p>
     </div>
   );

@@ -52,14 +52,18 @@ export function createQuestion(
 
 export function createDraftQuestions() {
   return [
-    createQuestion(
-      "Which part of the class do you want to review first?",
-      ["Warm-up", "Main lesson", "Group activity", "Exit ticket"],
-    ),
-    createQuestion(
-      "Which format should the next challenge use?",
-      ["Single choice", "Multiple choice", "Ranking", "Speed round"],
-    ),
+    createQuestion("Which part of the class do you want to review first?", [
+      "Warm-up",
+      "Main lesson",
+      "Group activity",
+      "Exit ticket",
+    ]),
+    createQuestion("Which format should the next challenge use?", [
+      "Single choice",
+      "Multiple choice",
+      "Ranking",
+      "Speed round",
+    ]),
   ];
 }
 
@@ -205,6 +209,7 @@ export function getQuestionScores(
 
   return scores.map((score) => ({
     ...score,
-    percent: totalVotes === 0 ? 0 : Math.round((score.count / totalVotes) * 100),
+    percent:
+      totalVotes === 0 ? 0 : Math.round((score.count / totalVotes) * 100),
   }));
 }
