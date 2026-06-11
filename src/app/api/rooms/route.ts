@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const room = createRoom({
+  const room = await createRoom({
     title: body.title,
     hostName: body.hostName,
     roomCode: body.roomCode,

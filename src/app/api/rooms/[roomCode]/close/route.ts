@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ roomCode: string }> },
 ) {
   const { roomCode } = await params;
-  const room = closeRoom(roomCode);
+  const room = await closeRoom(roomCode);
 
   if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });

@@ -27,7 +27,7 @@ export async function POST(
     );
   }
 
-  const room = voteInRoom(
+  const room = await voteInRoom(
     roomCode,
     body.participantId,
     body.questionId,

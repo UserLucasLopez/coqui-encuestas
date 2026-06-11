@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ roomCode: string }> },
 ) {
   const { roomCode } = await params;
-  const room = rewindRoom(roomCode);
+  const room = await rewindRoom(roomCode);
 
   if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });

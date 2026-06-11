@@ -9,31 +9,41 @@ import {
   type QuizQuestion,
   type QuizRoom,
 } from "@/lib/quiz";
+import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
+import { getDynamoDocumentClient, getRoomsTableName } from "@/lib/dynamodb";
 
-type RoomStore = {
-  rooms: Map<string, QuizRoom>;
-  subscribers: Map<string, Set<ReadableStreamDefaultController<Uint8Array>>>;
+const ROOM_TTL_SECONDS = 60 * 60 * 24;
+const MAX_UPDATE_RETRIES = 6;
+
+type RoomRecord = {
+  roomCode: string;
+  room: QuizRoom;
+  version: number;
+  ttl: number;
+};
+
+type LocalStore = {
+  rooms: Map<string, RoomRecord>;
 };
 
 declare global {
   // eslint-disable-next-line no-var
-  var __coquiEncuestasStore: RoomStore | undefined;
+  var __coquiEncuestasLocalStore: LocalStore | undefined;
 }
 
-const encoder = new TextEncoder();
+function isDevelopmentMode() {
+  return process.env.NODE_ENV !== "production";
+}
 
-function getStore() {
-  if (!globalThis.__coquiEncuestasStore) {
-    globalThis.__coquiEncuestasStore = {
-      rooms: new Map<string, QuizRoom>(),
-      subscribers: new Map<
-        string,
-        Set<ReadableStreamDefaultController<Uint8Array>>
-      >(),
+function getLocalStore() {
+  if (!globalThis.__coquiEncuestasLocalStore) {
+    globalThis.__coquiEncuestasLocalStore = {
+      rooms: new Map<string, RoomRecord>(),
     };
   }
 
-  return globalThis.__coquiEncuestasStore;
+  return globalThis.__coquiEncuestasLocalStore;
 }
 
 function normalizeRoomCode(roomCode: string) {
@@ -43,87 +53,186 @@ function normalizeRoomCode(roomCode: string) {
     .replace(/[^A-Z0-9-]/g, "");
 }
 
-function uniqueRoomCode(preferredRoomCode?: string) {
-  const store = getStore();
-  const preferred = preferredRoomCode
-    ? normalizeRoomCode(preferredRoomCode)
-    : "";
-
-  if (preferred && !store.rooms.has(preferred)) {
-    return preferred;
-  }
-
-  let nextRoomCode = generateRoomCode();
-  while (store.rooms.has(nextRoomCode)) {
-    nextRoomCode = generateRoomCode();
-  }
-
-  return nextRoomCode;
+function computeTtl() {
+  return Math.floor(Date.now() / 1000) + ROOM_TTL_SECONDS;
 }
 
-function publishRoom(room: QuizRoom) {
-  const store = getStore();
-  store.rooms.set(room.roomCode, room);
+function buildRecord(room: QuizRoom, version: number): RoomRecord {
+  return {
+    roomCode: room.roomCode,
+    room,
+    version,
+    ttl: computeTtl(),
+  };
+}
 
-  const subscribers = store.subscribers.get(room.roomCode);
-  if (!subscribers || subscribers.size === 0) {
-    return room;
+async function getRoomRecord(roomCode: string) {
+  const normalizedRoomCode = normalizeRoomCode(roomCode);
+
+  if (isDevelopmentMode()) {
+    return getLocalStore().rooms.get(normalizedRoomCode) ?? null;
   }
 
-  const payload = encoder.encode(`data: ${JSON.stringify(room)}\n\n`);
-  const closedControllers: ReadableStreamDefaultController<Uint8Array>[] = [];
+  const client = getDynamoDocumentClient();
+  const tableName = getRoomsTableName();
 
-  for (const controller of subscribers) {
-    try {
-      controller.enqueue(payload);
-    } catch {
-      closedControllers.push(controller);
+  const response = await client.send(
+    new GetCommand({
+      TableName: tableName,
+      Key: { roomCode: normalizedRoomCode },
+      ConsistentRead: true,
+    }),
+  );
+
+  return (response.Item as RoomRecord | undefined) ?? null;
+}
+
+async function tryCreateRoom(roomCode: string, room: QuizRoom) {
+  const normalizedRoomCode = normalizeRoomCode(roomCode);
+
+  if (isDevelopmentMode()) {
+    const store = getLocalStore();
+    if (store.rooms.has(normalizedRoomCode)) {
+      return false;
     }
+
+    store.rooms.set(
+      normalizedRoomCode,
+      buildRecord({ ...room, roomCode: normalizedRoomCode }, 1),
+    );
+    return true;
   }
 
-  for (const controller of closedControllers) {
-    subscribers.delete(controller);
+  const client = getDynamoDocumentClient();
+  const tableName = getRoomsTableName();
+
+  try {
+    await client.send(
+      new PutCommand({
+        TableName: tableName,
+        Item: buildRecord({ ...room, roomCode: normalizedRoomCode }, 1),
+        ConditionExpression: "attribute_not_exists(roomCode)",
+      }),
+    );
+
+    return true;
+  } catch (error) {
+    if (error instanceof ConditionalCheckFailedException) {
+      return false;
+    }
+
+    throw error;
   }
-
-  return room;
 }
 
-export function getRoom(roomCode: string) {
-  return getStore().rooms.get(normalizeRoomCode(roomCode)) ?? null;
+export async function getRoom(roomCode: string) {
+  const record = await getRoomRecord(roomCode);
+  return record?.room ?? null;
 }
 
-export function createRoom(input: {
+export async function createRoom(input: {
   title: string;
   hostName: string;
   roomCode?: string;
   questions: QuizQuestion[];
 }) {
-  const roomCode = uniqueRoomCode(input.roomCode);
-  const room = createLiveRoom({
+  const preferredRoomCode = input.roomCode
+    ? normalizeRoomCode(input.roomCode)
+    : "";
+  const roomTemplate = createLiveRoom({
     title: input.title,
     hostName: input.hostName,
     questions: input.questions.map(normalizeQuestion),
   });
 
-  return publishRoom({
-    ...room,
-    roomCode,
-  });
+  if (preferredRoomCode) {
+    const created = await tryCreateRoom(preferredRoomCode, roomTemplate);
+    if (created) {
+      return {
+        ...roomTemplate,
+        roomCode: preferredRoomCode,
+      };
+    }
+  }
+
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const generatedRoomCode = generateRoomCode();
+    const created = await tryCreateRoom(generatedRoomCode, roomTemplate);
+
+    if (created) {
+      return {
+        ...roomTemplate,
+        roomCode: generatedRoomCode,
+      };
+    }
+  }
+
+  throw new Error("Unable to allocate a unique room code.");
 }
 
-export function updateRoom(
+export async function updateRoom(
   roomCode: string,
   updater: (room: QuizRoom) => QuizRoom,
 ) {
-  const currentRoom = getRoom(roomCode);
-  if (!currentRoom) {
-    return null;
+  const normalizedRoomCode = normalizeRoomCode(roomCode);
+
+  if (isDevelopmentMode()) {
+    const store = getLocalStore();
+    const currentRecord = store.rooms.get(normalizedRoomCode);
+    if (!currentRecord) {
+      return null;
+    }
+
+    const nextRoom = updater(currentRecord.room);
+    store.rooms.set(
+      normalizedRoomCode,
+      buildRecord(
+        { ...nextRoom, roomCode: normalizedRoomCode },
+        currentRecord.version + 1,
+      ),
+    );
+
+    return nextRoom;
   }
 
-  return publishRoom(updater(currentRoom));
+  const client = getDynamoDocumentClient();
+  const tableName = getRoomsTableName();
+
+  for (let attempt = 0; attempt < MAX_UPDATE_RETRIES; attempt += 1) {
+    const currentRecord = await getRoomRecord(normalizedRoomCode);
+    if (!currentRecord) {
+      return null;
+    }
+
+    const nextRoom = updater(currentRecord.room);
+    const nextVersion = currentRecord.version + 1;
+
+    try {
+      await client.send(
+        new PutCommand({
+          TableName: tableName,
+          Item: buildRecord(nextRoom, nextVersion),
+          ConditionExpression: "version = :expectedVersion",
+          ExpressionAttributeValues: {
+            ":expectedVersion": currentRecord.version,
+          },
+        }),
+      );
+
+      return nextRoom;
+    } catch (error) {
+      if (error instanceof ConditionalCheckFailedException) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error("Failed to update room due to concurrent writes.");
 }
 
-export function joinRoom(
+export async function joinRoom(
   roomCode: string,
   participantName: string,
   participantId: string,
@@ -133,7 +242,7 @@ export function joinRoom(
   );
 }
 
-export function voteInRoom(
+export async function voteInRoom(
   roomCode: string,
   participantId: string,
   questionId: string,
@@ -144,79 +253,17 @@ export function voteInRoom(
   );
 }
 
-export function advanceRoom(roomCode: string) {
+export async function advanceRoom(roomCode: string) {
   return updateRoom(roomCode, advanceQuestion);
 }
 
-export function rewindRoom(roomCode: string) {
+export async function rewindRoom(roomCode: string) {
   return updateRoom(roomCode, rewindQuestion);
 }
 
-export function closeRoom(roomCode: string) {
+export async function closeRoom(roomCode: string) {
   return updateRoom(roomCode, (room) => ({
     ...room,
     status: "finished",
   }));
-}
-
-export function subscribeToRoom(
-  roomCode: string,
-  controller: ReadableStreamDefaultController<Uint8Array>,
-) {
-  const store = getStore();
-  const normalizedRoomCode = normalizeRoomCode(roomCode);
-  const subscribers = store.subscribers.get(normalizedRoomCode) ?? new Set();
-  subscribers.add(controller);
-  store.subscribers.set(normalizedRoomCode, subscribers);
-
-  const currentRoom = store.rooms.get(normalizedRoomCode);
-  if (currentRoom) {
-    controller.enqueue(
-      encoder.encode(`data: ${JSON.stringify(currentRoom)}\n\n`),
-    );
-  }
-
-  return () => {
-    subscribers.delete(controller);
-    if (subscribers.size === 0) {
-      store.subscribers.delete(normalizedRoomCode);
-    }
-  };
-}
-
-export function createRoomEventStream(roomCode: string) {
-  const normalizedRoomCode = normalizeRoomCode(roomCode);
-  let heartbeat: ReturnType<typeof setInterval> | null = null;
-  let unsubscribe = () => {};
-
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      const store = getStore();
-      if (!store.rooms.has(normalizedRoomCode)) {
-        controller.error(new Error("Room not found"));
-        return;
-      }
-
-      unsubscribe = subscribeToRoom(normalizedRoomCode, controller);
-      heartbeat = setInterval(() => {
-        try {
-          controller.enqueue(encoder.encode(`: ping\n\n`));
-        } catch {
-          if (heartbeat) {
-            clearInterval(heartbeat);
-          }
-          unsubscribe();
-        }
-      }, 15000);
-
-      controller.enqueue(encoder.encode(`: connected\n\n`));
-    },
-    cancel() {
-      if (heartbeat) {
-        clearInterval(heartbeat);
-      }
-
-      unsubscribe();
-    },
-  });
 }

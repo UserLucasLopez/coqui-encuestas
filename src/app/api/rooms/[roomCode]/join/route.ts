@@ -22,7 +22,11 @@ export async function POST(
     );
   }
 
-  const room = joinRoom(roomCode, body.participantName, body.participantId);
+  const room = await joinRoom(
+    roomCode,
+    body.participantName,
+    body.participantId,
+  );
   if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
