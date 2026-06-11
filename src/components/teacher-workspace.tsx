@@ -223,6 +223,7 @@ export function TeacherWorkspace() {
           ? publishError.message
           : "Unable to publish the room.",
       );
+      throw publishError;
     } finally {
       setIsPublishing(false);
     }
