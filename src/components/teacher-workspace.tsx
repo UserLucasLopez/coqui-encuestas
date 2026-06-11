@@ -55,6 +55,7 @@ export function TeacherWorkspace() {
   const [studentMessage, setStudentMessage] = useState<string>(
     "Create a quiz, publish it, and control the room here.",
   );
+  const [isPublishing, setIsPublishing] = useState(false);
   const { room, loading, error, setRoom } = useRoomStream(draft.activeRoomCode);
 
   useEffect(() => {
@@ -196,6 +197,9 @@ export function TeacherWorkspace() {
   };
 
   const publishRoom = async () => {
+    setIsPublishing(true);
+    setStudentMessage("Publishing room...");
+
     try {
       const createdRoom = await createRoomRequest({
         title: draft.quizTitle,
@@ -219,6 +223,8 @@ export function TeacherWorkspace() {
           ? publishError.message
           : "Unable to publish the room.",
       );
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -313,9 +319,10 @@ export function TeacherWorkspace() {
                 <button
                   type="button"
                   onClick={publishRoom}
-                  className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:translate-y-[-1px] hover:bg-amber-200"
+                  disabled={isPublishing}
+                  className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:translate-y-[-1px] hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Publish room
+                  {isPublishing ? "Publishing..." : "Publish room"}
                 </button>
                 <button
                   type="button"
