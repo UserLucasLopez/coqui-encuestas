@@ -64,6 +64,8 @@ type StudentRoomText = {
   roomCode: string;
   joinRoom: string;
   studentPlaceholder: string;
+  leaveRoom: string;
+  roomClosedReturn: string;
 };
 
 const STORAGE_KEY = "coqui-encuestas-student-state";
@@ -118,6 +120,8 @@ const TEXT: Record<Locale, StudentRoomText> = {
     roomCode: "Room code",
     joinRoom: "Join room",
     studentPlaceholder: "Turbo Taco",
+    leaveRoom: "Leave room",
+    roomClosedReturn: "Room was closed. Back to lobby.",
   },
   es: {
     genericNames: ["Estudiante", "Anonimo", "Anonymous"],
@@ -168,6 +172,8 @@ const TEXT: Record<Locale, StudentRoomText> = {
     roomCode: "Codigo de sala",
     joinRoom: "Unirse a sala",
     studentPlaceholder: "Turbo Taco",
+    leaveRoom: "Salir de la sala",
+    roomClosedReturn: "La sala fue cerrada. Volviste al inicio.",
   },
 };
 
@@ -286,6 +292,21 @@ export function StudentRoom({ locale = "en" }: { locale?: Locale }) {
     room && state.joinedRoomCode === room.roomCode && joinedParticipant,
   );
 
+  const leaveRoom = (message?: string) => {
+    setState((currentState) => ({
+      ...currentState,
+      joinedRoomCode: null,
+    }));
+    setRoom(null);
+    setNotice(message ?? t.noticeJoin);
+  };
+
+  useEffect(() => {
+    if (hasJoined && room?.status === "finished") {
+      leaveRoom(t.roomClosedReturn);
+    }
+  }, [hasJoined, room?.status, t.roomClosedReturn]);
+
   const joinRoom = async (roomCode = state.roomCode) => {
     const normalizedRoomCode = sanitizeRoomCode(roomCode);
     if (!normalizedRoomCode) {
@@ -397,6 +418,15 @@ export function StudentRoom({ locale = "en" }: { locale?: Locale }) {
         {hasJoined ? (
           <article className="rounded-[2rem] border border-slate-200 bg-white/85 p-5 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
             <div className="flex flex-col gap-3 border-b border-slate-200 pb-4">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => leaveRoom()}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  {t.leaveRoom}
+                </button>
+              </div>
               <p className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm text-white">
                 {notice}
                 {error ? ` ${error}` : ""}

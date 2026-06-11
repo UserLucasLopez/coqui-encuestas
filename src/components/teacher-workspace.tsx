@@ -247,7 +247,11 @@ export function TeacherWorkspace() {
     }
 
     const nextRoom = await closeRoomRequest(draft.activeRoomCode);
-    setRoom(nextRoom);
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      activeRoomCode: null,
+    }));
+    setRoom(null);
     setStudentMessage(`Room ${nextRoom.roomCode} has been closed.`);
   };
 
