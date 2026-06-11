@@ -6,6 +6,7 @@ import {
   createId,
   createQuestion,
   getQuestionScores,
+  type QuizRoom,
   type QuizQuestion,
 } from "@/lib/quiz";
 import {
@@ -56,6 +57,11 @@ export function TeacherWorkspace() {
     "Create a quiz, publish it, and control the room here.",
   );
   const [isPublishing, setIsPublishing] = useState(false);
+  const [closedRoomSnapshot, setClosedRoomSnapshot] = useState<QuizRoom | null>(
+    null,
+  );
+  const [showFullscreenResults, setShowFullscreenResults] = useState(false);
+  const [resultsQuestionIndex, setResultsQuestionIndex] = useState(0);
   const { room, loading, error, setRoom } = useRoomStream(draft.activeRoomCode);
 
   useEffect(() => {
@@ -213,6 +219,9 @@ export function TeacherWorkspace() {
         activeRoomCode: createdRoom.roomCode,
         roomCode: createdRoom.roomCode,
       }));
+      setClosedRoomSnapshot(null);
+      setShowFullscreenResults(false);
+      setResultsQuestionIndex(0);
       setRoom(createdRoom);
       setStudentMessage(
         `Room ${createdRoom.roomCode} is live and ready for students.`,
@@ -248,6 +257,8 @@ export function TeacherWorkspace() {
     }
 
     const nextRoom = await closeRoomRequest(draft.activeRoomCode);
+    setClosedRoomSnapshot(nextRoom);
+    setResultsQuestionIndex(nextRoom.activeQuestionIndex);
     setDraft((currentDraft) => ({
       ...currentDraft,
       activeRoomCode: null,
@@ -255,6 +266,14 @@ export function TeacherWorkspace() {
     setRoom(null);
     setStudentMessage(`Room ${nextRoom.roomCode} has been closed.`);
   };
+
+  const resultsRoom = closedRoomSnapshot;
+  const resultsQuestion = resultsRoom?.questions[resultsQuestionIndex] ?? null;
+  const resultsScores = getQuestionScores(resultsRoom, resultsQuestion?.id);
+  const questionVoteTotal = resultsScores.reduce(
+    (sum, score) => sum + score.count,
+    0,
+  );
 
   const votedParticipants =
     room?.participants.filter(
@@ -502,6 +521,25 @@ export function TeacherWorkspace() {
                   </div>
                 )}
 
+                {!room && closedRoomSnapshot && (
+                  <button
+                    type="button"
+                    onClick={() => setShowFullscreenResults(true)}
+                    className="w-full rounded-[1.4rem] border border-slate-200 bg-white px-5 py-4 text-left transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                      Closed room results
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-slate-950">
+                      View fullscreen results for all questions
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Room {closedRoomSnapshot.roomCode} ·{" "}
+                      {closedRoomSnapshot.title}
+                    </p>
+                  </button>
+                )}
+
                 {currentQuestion && (
                   <div className="space-y-4">
                     <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-5">
@@ -593,6 +631,99 @@ export function TeacherWorkspace() {
           </section>
         </div>
       </section>
+
+      {showFullscreenResults && resultsRoom && resultsQuestion && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/90 p-4 sm:p-6">
+          <div className="mx-auto w-full max-w-6xl rounded-[2rem] border border-white/15 bg-slate-950 p-5 text-white shadow-[0_30px_90px_rgba(0,0,0,0.35)] sm:p-7">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                  Fullscreen results
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+                  {resultsRoom.title}
+                </h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Question {resultsQuestionIndex + 1} of{" "}
+                  {resultsRoom.questions.length}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFullscreenResults(false)}
+                className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+              >
+                Close fullscreen
+              </button>
+            </div>
+
+            <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
+              <h3 className="text-xl font-semibold text-white sm:text-2xl">
+                {resultsQuestion.prompt}
+              </h3>
+              <p className="mt-2 text-sm text-slate-300">
+                {questionVoteTotal} vote{questionVoteTotal === 1 ? "" : "s"} on
+                this question
+              </p>
+
+              <div className="mt-5 space-y-4">
+                {resultsScores.map((result) => (
+                  <div key={result.option} className="space-y-2">
+                    <div className="flex items-center justify-between gap-4 text-sm text-slate-200">
+                      <span className="font-medium">{result.option}</span>
+                      <span>
+                        {result.count} vote{result.count === 1 ? "" : "s"} ·{" "}
+                        {result.percent}%
+                      </span>
+                    </div>
+                    <div className="h-4 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-amber-300 via-cyan-300 to-emerald-300 transition-all"
+                        style={{
+                          width: `${Math.max(result.percent, result.count > 0 ? 8 : 0)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setResultsQuestionIndex((currentIndex) =>
+                    Math.max(0, currentIndex - 1),
+                  )
+                }
+                disabled={resultsQuestionIndex <= 0}
+                className="rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Previous question
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setResultsQuestionIndex((currentIndex) =>
+                    Math.min(
+                      resultsRoom.questions.length - 1,
+                      currentIndex + 1,
+                    ),
+                  )
+                }
+                disabled={
+                  resultsQuestionIndex >= resultsRoom.questions.length - 1
+                }
+                className="rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next question
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
